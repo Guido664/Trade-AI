@@ -14,6 +14,12 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  
+  // Check if API Key exists in env (simple check for empty string/undefined)
+  const hasApiKey = React.useMemo(() => {
+    const key = process.env.API_KEY;
+    return key && key !== 'undefined' && key.trim() !== '';
+  }, []);
 
   // Load initial data on mount
   useEffect(() => {
@@ -104,23 +110,36 @@ const App: React.FC = () => {
             </div>
 
             {/* AI Insight Section */}
-            <div className="bg-gradient-to-br from-indigo-900/40 to-slate-800 rounded-2xl p-6 border border-indigo-500/30 relative overflow-hidden shadow-2xl">
+            <div className={`rounded-2xl p-6 border relative overflow-hidden shadow-2xl transition-all ${
+                aiInsight?.startsWith('⚠️') || aiInsight?.startsWith('❌') 
+                ? 'bg-rose-900/20 border-rose-500/50' 
+                : 'bg-gradient-to-br from-indigo-900/40 to-slate-800 border-indigo-500/30'
+            }`}>
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 {ICONS.Sparkles}
               </div>
               
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <span className="text-indigo-400">{ICONS.Sparkles}</span>
+                  <span className={aiInsight?.startsWith('⚠️') ? "text-rose-400" : "text-indigo-400"}>
+                    {ICONS.Sparkles}
+                  </span>
                   Analista AI Gemini
                 </h3>
+                
                 {!aiInsight && !aiLoading && (
-                  <button 
-                    onClick={handleGenerateInsight}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-indigo-600/20"
-                  >
-                    Genera Analisi
-                  </button>
+                  hasApiKey ? (
+                    <button 
+                        onClick={handleGenerateInsight}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-indigo-600/20"
+                    >
+                        Genera Analisi
+                    </button>
+                  ) : (
+                    <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold rounded uppercase tracking-wider">
+                        Configurazione Richiesta
+                    </div>
+                  )
                 )}
               </div>
 
@@ -131,22 +150,37 @@ const App: React.FC = () => {
                 </div>
               )}
 
+              {/* API Key Missing Warning State (Initial) */}
+              {!hasApiKey && !aiInsight && !aiLoading && (
+                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-200 text-sm">
+                    <strong>⚠️ API Key Mancante</strong>
+                    <p className="mt-1 opacity-80">
+                        Per utilizzare l'analisi AI, configura la variabile <code>API_KEY</code> nel pannello Environment Variables di Vercel.
+                    </p>
+                 </div>
+              )}
+
               {aiInsight && (
                 <div className="prose prose-invert max-w-none">
-                  {/* Added whitespace-pre-wrap to respect new lines from AI response */}
-                  <div className="text-slate-200 leading-relaxed text-lg whitespace-pre-wrap">
+                  <div className={`leading-relaxed text-lg whitespace-pre-wrap ${
+                      aiInsight.startsWith('⚠️') || aiInsight.startsWith('❌') 
+                      ? 'text-rose-200 font-medium' 
+                      : 'text-slate-200'
+                  }`}>
                     {aiInsight}
                   </div>
-                  <button 
-                    onClick={handleGenerateInsight}
-                    className="mt-4 text-xs text-indigo-400 hover:text-indigo-300 underline"
-                  >
-                    Aggiorna Analisi
-                  </button>
+                  {hasApiKey && (
+                    <button 
+                        onClick={handleGenerateInsight}
+                        className="mt-4 text-xs text-indigo-400 hover:text-indigo-300 underline"
+                    >
+                        Riprova Analisi
+                    </button>
+                  )}
                 </div>
               )}
               
-              {!aiInsight && !aiLoading && (
+              {!aiInsight && !aiLoading && hasApiKey && (
                  <p className="text-slate-400">
                    Sblocca un report strategico completo (Buy/Sell/Hold) basato su RSI, MACD e Volatilità.
                  </p>

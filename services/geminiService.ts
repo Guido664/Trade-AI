@@ -6,9 +6,13 @@ export const generateStockInsight = async (
   price: number, 
   indicators: TechnicalIndicators
 ): Promise<string> => {
+  // 1. Check if API Key is defined in the environment
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing");
+  
+  // Check for undefined, null, empty string, or the string "undefined" (common vite env artifact)
+  if (!apiKey || apiKey === 'undefined' || apiKey.trim() === '') {
+    console.error("Gemini Service: API Key is missing in environment variables.");
+    return "⚠️ ERRORE CONFIGURAZIONE: API Key mancante.\n\nAssicurati di aver aggiunto la variabile d'ambiente 'API_KEY' nelle impostazioni del progetto su Vercel (o nel file .env in locale).";
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -44,12 +48,31 @@ export const generateStockInsight = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.0-flash', // Updated to latest stable flash model
       contents: prompt,
     });
-    return response.text || "Impossibile generare l'analisi.";
-  } catch (error) {
+    
+    if (!response.text) {
+        throw new Error("Empty response from Gemini");
+    }
+
+    return response.text;
+
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    return "Errore nella generazione dell'analisi AI. Controlla la configurazione API.";
+
+    const errorMessage = error.message || error.toString();
+
+    // 2. Specific Error Handling for Authentication
+    if (errorMessage.includes('400') || errorMessage.includes('API key') || errorMessage.includes('permission_denied')) {
+        return "⚠️ ERRORE AUTENTICAZIONE: API Key non valida.\n\nLa chiave inserita non sembra corretta o è scaduta. Controlla le impostazioni su Vercel e verifica di aver copiato l'intera stringa.";
+    }
+
+    if (errorMessage.includes('429')) {
+        return "⚠️ ERRORE QUOTA: Hai superato il limite di richieste per questa API Key. Riprova più tardi.";
+    }
+
+    // Generic fallback
+    return "❌ Errore durante la connessione con l'AI.\n\nDettagli: " + (error.message || "Errore sconosciuto.");
   }
 };
